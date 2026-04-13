@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Video Carousel</title>
+  <style>
+    :root {
+      --bg: #111;
+      --card: #1a1a1a;
+      --card-hover: #242424;
+      --text: #f5f5f5;
+      --muted: #b8b8b8;
+      --accent: #ffffff;
+      --shadow: 0 10px 30px rgba(0,0,0,0.25);
+      --radius: 14px;
+      --gap: 16px;
+      --thumb-width: 280px;
+      --thumb-height: 158px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: transparent;
+      color: var(--text);
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    body {
+      padding: 16px;
+    }
+
+    .carousel-wrap {
+      width: 100%;
+      max-width: 1200px;
+      margin: 0 auto;
+      position: relative;
+    }
+
+    .carousel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .carousel-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin: 0;
+      color: var(--text);
+    }
+
+    .carousel-subtitle {
+      margin: 4px 0 0;
+      font-size: 0.95rem;
+      color: var(--muted);
+    }
+
+    .carousel-controls {
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .nav-btn {
+      appearance: none;
+      border: 0;
+      border-radius: 999px;
+      width: 42px;
+      height: 42px;
+      background: var(--card);
+      color: var(--text);
+      cursor: pointer;
+      box-shadow: var(--shadow);
+      font-size: 20px;
+      line-height: 1;
+      transition: transform 0.15s ease, background 0.15s ease, opacity 0.15s ease;
+    }
+
+    .nav-btn:hover {
+      background: var(--card-hover);
+      transform: translateY(-1px);
+    }
+
+    .nav-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .carousel-track-wrap {
+      overflow: hidden;
+      width: 100%;
+    }
+
+    .carousel-track {
+      display: flex;
+      gap: var(--gap);
+      overflow-x: auto;
+      scroll-behavior: smooth;
+      padding: 4px 2px 8px;
+      scrollbar-width: thin;
+      scrollbar-color: #555 transparent;
+    }
+
+    .carousel-track::-webkit-scrollbar {
+      height: 10px;
+    }
+
+    .carousel-track::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .carousel-track::-webkit-scrollbar-thumb {
+      background: #555;
+      border-radius: 999px;
+    }
+
+    .video-card {
+      flex: 0 0 var(--thumb-width);
+      width: var(--thumb-width);
+      background: var(--card);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      cursor: pointer;
+      transition: transform 0.18s ease, background 0.18s ease;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .video-card:hover {
+      transform: translateY(-2px);
+      background: var(--card-hover);
+    }
+
+    .thumb-wrap {
+      position: relative;
+      width: 100%;
+      height: var(--thumb-height);
+      overflow: hidden;
+      background: #000;
+    }
+
+    .thumb-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .play-badge {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(to top, rgba(0,0,0,0.25), rgba(0,0,0,0.08));
+      pointer-events: none;
+    }
+
+    .play-circle {
+      width: 62px;
+      height: 62px;
+      border-radius: 50%;
+      background: rgba(0,0,0,0.6);
+      display: grid;
+      place-items: center;
+      backdrop-filter: blur(3px);
+      box-shadow: 0 6px 18px rgba(0,0,0,0.3);
+    }
+
+    .play-triangle {
+      width: 0;
+      height: 0;
+      border-left: 18px solid white;
+      border-top: 11px solid transparent;
+      border-bottom: 11px solid transparent;
+      margin-left: 3px;
+    }
+
+    .card-body {
+      padding: 12px 14px 14px;
+    }
+
+    .card-title {
+      font-size: 0.98rem;
+      font-weight: 700;
+      line-height: 1.35;
+      margin: 0 0 6px;
+      color: var(--text);
+    }
+
+    .card-meta {
+      font-size: 0.87rem;
+      color: var(--muted);
+      line-height: 1.4;
+      margin: 0;
+    }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.78);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      padding: 24px;
+    }
+
+    .modal.open {
+      display: flex;
+    }
+
+    .modal-dialog {
+      width: min(1100px, 100%);
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .modal-topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      color: white;
+    }
+
+    .modal-title-wrap {
+      min-width: 0;
+    }
+
+    .modal-title {
+      margin: 0;
+      font-size: 1.1rem;
+      line-height: 1.35;
+      font-weight: 700;
+    }
+
+    .modal-caption {
+      margin: 4px 0 0;
+      font-size: 0.92rem;
+      color: #d2d2d2;
+    }
+
+    .modal-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .icon-btn {
+      appearance: none;
+      border: 0;
+      width: 44px;
+      height: 44px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.14);
+      color: white;
+      cursor: pointer;
+      font-size: 22px;
+      transition: background 0.15s ease, transform 0.15s ease, opacity 0.15s ease;
+    }
+
+    .icon-btn:hover {
+      background: rgba(255,255,255,0.22);
+      transform: translateY(-1px);
+    }
+
+    .icon-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .player-shell {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background: #000;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 16px 50px rgba(0,0,0,0.45);
+    }
+
+    .player-shell iframe,
+    .player-shell video {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      display: block;
+      background: #000;
+    }
+
+    .player-nav {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 2;
+      width: 52px;
+      height: 52px;
+      border-radius: 999px;
+      border: 0;
+      background: rgba(0,0,0,0.45);
+      color: white;
+      cursor: pointer;
+      font-size: 28px;
+      display: grid;
+      place-items: center;
+      transition: background 0.15s ease, opacity 0.15s ease;
+    }
+
+    .player-nav:hover {
+      background: rgba(0,0,0,0.65);
+    }
+
+    .player-nav:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    .player-nav.prev {
+      left: 12px;
+    }
+
+    .player-nav.next {
+      right: 12px;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      margin: -1px;
+      padding: 0;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      border: 0;
+    }
+
+    @media (max-width: 900px) {
+      :root {
+        --thumb-width: 240px;
+        --thumb-height: 135px;
+      }
+
+      body {
+        padding: 12px;
+      }
+
+      .carousel-header {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+    }
+
+    @media (max-width: 600px) {
+      :root {
+        --thumb-width: 84vw;
+        --thumb-height: calc(84vw * 0.5625);
+      }
+
+      .modal {
+        padding: 12px;
+      }
+
+      .modal-topbar {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .modal-actions {
+        width: 100%;
+        justify-content: flex-end;
+      }
+
+      .player-nav {
+        width: 44px;
+        height: 44px;
+        font-size: 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="carousel-wrap">
+    <div class="carousel-header">
+      <div>
+        <h2 class="carousel-title">Selected Work</h2>
+        <p class="carousel-subtitle">Click a thumbnail to open and play.</p>
+      </div>
+      <div class="carousel-controls">
+        <button class="nav-btn" id="thumbPrev" aria-label="Scroll thumbnails left">‹</button>
+        <button class="nav-btn" id="thumbNext" aria-label="Scroll thumbnails right">›</button>
+      </div>
+    </div>
+
+    <div class="carousel-track-wrap">
+      <div class="carousel-track" id="carouselTrack" aria-label="Video carousel"></div>
+    </div>
+  </div>
+
+  <div class="modal" id="videoModal" aria-hidden="true">
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal-topbar">
+        <div class="modal-title-wrap">
+          <h3 class="modal-title" id="modalTitle"></h3>
+          <p class="modal-caption" id="modalCaption"></p>
+        </div>
+        <div class="modal-actions">
+          <button class="icon-btn" id="modalPrev" aria-label="Previous video">‹</button>
+          <button class="icon-btn" id="modalNext" aria-label="Next video">›</button>
+          <button class="icon-btn" id="modalClose" aria-label="Close player">×</button>
+        </div>
+      </div>
+
+      <div class="player-shell">
+        <button class="player-nav prev" id="playerPrev" aria-label="Previous video">‹</button>
+        <div id="playerContainer"></div>
+        <button class="player-nav next" id="playerNext" aria-label="Next video">›</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /*
+      EDIT THESE ITEMS
+      ----------------
+      type: "youtube" | "vimeo" | "direct"
+      videoId:
+        - YouTube: the ID only, e.g. dQw4w9WgXcQ
+        - Vimeo: the ID only
+        - direct: full MP4/WebM URL
+      thumbnail:
+        - YouTube can use: https://i.ytimg.com/vi/VIDEO_ID/hqdefault.jpg
+        - Vimeo/direct: use your own image URL
+    */
+
+    const videos = [
+      {
+        title: "Historic Portraits of 1860s Japan",
+        caption: "Producer, journalist and voice over",
+        type: "youtube",
+        videoId: "OB4cWbn-D_o",
+        thumbnail: "https://i.ytimg.com/vi/OB4cWbn-D_o/hqdefault.jpg"
+      },
+      {
+        title: "Richard III: The First Photo of an English King",
+        caption: "Producer and narrator",
+        type: "youtube",
+        videoId: "VYLP1wUlAjE",
+        thumbnail: "https://i.ytimg.com/vi/VYLP1wUlAjE/hqdefault.jpg"
+      },
+      {
+        title: "The Truth About Eating Eggs",
+        caption: "Producer, presenter and narrator",
+        type: "youtube",
+        videoId: "GSXGyw4Sq4I",
+        thumbnail: "https://i.ytimg.com/vi/GSXGyw4Sq4I/hqdefault.jpg"
+      },
+      {
+        title: "Sample Vimeo Film",
+        caption: "Commissioned / produced",
+        type: "vimeo",
+        videoId: "76979871",
+        thumbnail: "https://i.vimeocdn.com/video/452001751-640.jpg"
+      },
+      {
+        title: "Sample Direct Video",
+        caption: "Self-shot / edited",
+        type: "direct",
+        videoId: "https://www.w3schools.com/html/mov_bbb.mp4",
+        thumbnail: "https://dummyimage.com/640x360/333/fff&text=Direct+Video"
+      }
+    ];
+
+    const track = document.getElementById("carouselTrack");
+    const thumbPrev = document.getElementById("thumbPrev");
+    const thumbNext = document.getElementById("thumbNext");
+
+    const modal = document.getElementById("videoModal");
+    const modalTitle = document.getElementById("modalTitle");
+    const modalCaption = document.getElementById("modalCaption");
+    const playerContainer = document.getElementById("playerContainer");
+    const modalClose = document.getElementById("modalClose");
+    const modalPrev = document.getElementById("modalPrev");
+    const modalNext = document.getElementById("modalNext");
+    const playerPrev = document.getElementById("playerPrev");
+    const playerNext = document.getElementById("playerNext");
+
+    let currentIndex = 0;
+
+    function createCard(video, index) {
+      const card = document.createElement("article");
+      card.className = "video-card";
+      card.tabIndex = 0;
+      card.setAttribute("role", "button");
+      card.setAttribute("aria-label", `Open video: ${video.title}`);
+
+      card.innerHTML = `
+        <div class="thumb-wrap">
+          <img src="${escapeHtml(video.thumbnail)}" alt="${escapeHtml(video.title)} thumbnail">
+          <div class="play-badge">
+            <div class="play-circle">
+              <div class="play-triangle"></div>
+            </div>
+          </div>
+        </div>
+        <div class="card-body">
+          <h3 class="card-title">${escapeHtml(video.title)}</h3>
+          <p class="card-meta">${escapeHtml(video.caption || "")}</p>
+        </div>
+      `;
+
+      card.addEventListener("click", () => openModal(index));
+      card.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          openModal(index);
+        }
+      });
+
+      return card;
+    }
+
+    function renderCards() {
+      track.innerHTML = "";
+      videos.forEach((video, index) => {
+        track.appendChild(createCard(video, index));
+      });
+    }
+
+    function getEmbedMarkup(video) {
+      if (video.type === "youtube") {
+        const src = `https://www.youtube.com/embed/${encodeURIComponent(video.videoId)}?autoplay=1&rel=0&modestbranding=1`;
+        return `<iframe
+          src="${src}"
+          title="${escapeHtml(video.title)}"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allowfullscreen
+          referrerpolicy="strict-origin-when-cross-origin"></iframe>`;
+      }
+
+      if (video.type === "vimeo") {
+        const src = `https://player.vimeo.com/video/${encodeURIComponent(video.videoId)}?autoplay=1`;
+        return `<iframe
+          src="${src}"
+          title="${escapeHtml(video.title)}"
+          allow="autoplay; fullscreen; picture-in-picture"
+          allowfullscreen></iframe>`;
+      }
+
+      if (video.type === "direct") {
+        return `<video controls autoplay playsinline>
+          <source src="${escapeHtml(video.videoId)}">
+          Your browser does not support the video tag.
+        </video>`;
+      }
+
+      return `<div style="display:grid;place-items:center;width:100%;height:100%;color:white;">Unsupported video type</div>`;
+    }
+
+    function openModal(index) {
+      currentIndex = index;
+      updateModal();
+      modal.classList.add("open");
+      modal.setAttribute("aria-hidden", "false");
+      document.body.style.overflow = "hidden";
+    }
+
+    function closeModal() {
+      modal.classList.remove("open");
+      modal.setAttribute("aria-hidden", "true");
+      playerContainer.innerHTML = "";
+      document.body.style.overflow = "";
+    }
+
+    function updateModal() {
+      const video = videos[currentIndex];
+      modalTitle.textContent = video.title;
+      modalCaption.textContent = video.caption || "";
+      playerContainer.innerHTML = getEmbedMarkup(video);
+
+      const atStart = currentIndex === 0;
+      const atEnd = currentIndex === videos.length - 1;
+
+      modalPrev.disabled = atStart;
+      playerPrev.disabled = atStart;
+      modalNext.disabled = atEnd;
+      playerNext.disabled = atEnd;
+    }
+
+    function showPrev() {
+      if (currentIndex > 0) {
+        currentIndex -= 1;
+        updateModal();
+      }
+    }
+
+    function showNext() {
+      if (currentIndex < videos.length - 1) {
+        currentIndex += 1;
+        updateModal();
+      }
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function scrollThumbs(direction) {
+      const amount = Math.min(track.clientWidth * 0.9, 900);
+      track.scrollBy({
+        left: direction === "next" ? amount : -amount,
+        behavior: "smooth"
+      });
+    }
+
+    thumbPrev.addEventListener("click", () => scrollThumbs("prev"));
+    thumbNext.addEventListener("click", () => scrollThumbs("next"));
+
+    modalClose.addEventListener("click", closeModal);
+    modalPrev.addEventListener("click", showPrev);
+    modalNext.addEventListener("click", showNext);
+    playerPrev.addEventListener("click", showPrev);
+    playerNext.addEventListener("click", showNext);
+
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) {
+        closeModal();
+      }
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (!modal.classList.contains("open")) return;
+
+      if (e.key === "Escape") closeModal();
+      if (e.key === "ArrowLeft") showPrev();
+      if (e.key === "ArrowRight") showNext();
+    });
+
+    renderCards();
+  </script>
+</body>
+</html>
